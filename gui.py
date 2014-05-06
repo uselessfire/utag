@@ -5,7 +5,7 @@
 #  See LICENSE.txt for more details.
 #  © UselessFire
 
-# v. 0.3.1 Beta Public
+# v. 0.3.2 Beta Public
 
 
 mvDir = "tagged"
@@ -15,6 +15,7 @@ import sys, os, gtk, shutil, gc
 
 gc.enable()
 
+from traceback import format_exc
 
 from mutagen.easyid3 import EasyID3
 from mutagen.mp3 import MP3
@@ -145,36 +146,57 @@ class utag_window:
 			if text:
 				self.mp3[name] = text
 			elif name in self.mp3:
-				del self.mp3[name]
+				try:
+					del self.mp3[name]
+				except:
+					if self.dialog(title=u'Произошла ошибка', message=u'Произошла ошибка при удалении тега "%s" в файле "%s":\n%s.\nПовторить?' % (name, self.mp3.filename, format_exc())):
+						self.next_file()
+					else:
+						self.save_and_next_file()
+					return
 		
-		self.mp3.save()
-		print u'Файл "%s" был сохранён' % self.mp3.filename
-		
-		newName = (u'%s - %s.mp3' % \
-			(
-				(self.artist.get_text()	if	self.artist.get_text()	else    u'Неизвестно'),
-				(self.title.get_text()	if	self.title.get_text()	else    u'Неизвестно')
-			)
-		)
-		
-		if os.path.exists("%s/%s" % (mvDir, newName)):
-			if not self.dialog(title=u'Заменить?', message=u'Файл "%s" уже существует в папке "%s"' % (newName, mvDir)):
-				os.remove("%s/%s" % (mvDir, newName))
-				shutil.move(self.mp3.filename, "%s/%s" % (mvDir, newName))	
-				print u'Файл "%s" был перемещён в папку "%s" с названием "%s" с перезаписью' % (self.mp3.filename, mvDir, newName)
+		try:
+			self.mp3.save()
+		except:
+			if self.dialog(title=u'Произошла ошибка', message=u'Произошла ошибка при сохранении файла "%s":\n%s.\nПовторить?' % (self.mp3.filename, format_exc())):
 				self.next_file()
+			else:
+				self.save_and_next_file()
 		else:
-			shutil.move(self.mp3.filename, "%s/%s" % (mvDir, newName))	
-			print u'Файл "%s" был перемещён в папку "%s" с названием "%s"' % (self.mp3.filename, mvDir, newName)
-			self.next_file()
+			print u'Файл "%s" был сохранён' % self.mp3.filename
+			
+			newName = (u'%s - %s.mp3' % \
+				(
+					(self.artist.get_text()	if	self.artist.get_text()	else    u'Неизвестно'),
+					(self.title.get_text()		if	self.title.get_text()		else    u'Неизвестно')
+				)
+			)
+			
+			if os.path.exists("%s/%s" % (mvDir, newName)):
+				if not self.dialog(title=u'Заменить?', message=u'Файл "%s" уже существует в папке "%s"' % (newName, mvDir)):
+					os.remove("%s/%s" % (mvDir, newName))
+					shutil.move(self.mp3.filename, "%s/%s" % (mvDir, newName))	
+					print u'Файл "%s" был перемещён в папку "%s" с названием "%s" с перезаписью' % (self.mp3.filename, mvDir, newName)
+					self.next_file()
+			else:
+				shutil.move(self.mp3.filename, "%s/%s" % (mvDir, newName))	
+				print u'Файл "%s" был перемещён в папку "%s" с названием "%s"' % (self.mp3.filename, mvDir, newName)
+				self.next_file()
 		
 		
 	
 	
 	def delete_and_next_file(self, widget=None):
-		os.remove(self.mp3.filename)
-		print u'Файл "%s" был удалён' % self.mp3.filename
-		self.next_file()
+		try:
+			os.remove(self.mp3.filename)
+		except:
+			if self.dialog(title=u'Произошла ошибка', message=u'Произошла ошибка при удалении файла "%s":\n%s.\nПовторить?' % (self.mp3.filename, format_exc())):
+				self.next_file()
+			else:
+				self.delete_and_next_file()
+		else:
+			print u'Файл "%s" был удалён' % self.mp3.filename
+			self.next_file()
 	
 	
 	
