@@ -4,6 +4,7 @@
 
 
 # Russian version of UTag
+# v. 1.0.1 Public
 
 #  This program distributed under Apache 2.0 license.
 #  See LICENSE.txt for more details.
@@ -125,7 +126,7 @@ def printItems(ftag, number, All):
 def tag(File, number, All):
 	ftag = MP3(File, ID3=EasyID3)
 	ret = edit(ftag, number, All)
-	if ret == '0':
+	if ret == '0': # save
 		ftag.save()
 		newName = u'%s - %s.mp3' % (
 			(ftag['artist'][0] if 'artist' in ftag else u'Неизвестно'),
@@ -142,7 +143,7 @@ def tag(File, number, All):
 		else:
 			shutil.move(File, mvDir)
 			os.rename("%s/%s" % (mvDir, File), "%s/%s" % (mvDir, newName))
-	elif ret == '7':
+	elif ret == '7': # remove
 		os.remove(File)
 
 

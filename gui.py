@@ -5,19 +5,20 @@
 #  See LICENSE.txt for more details.
 #  © UselessFire
 
+# v. 0.3.1 Beta Public
 
-import sys, os, gtk, shutil
+
+mvDir = "tagged"
+
+
+import sys, os, gtk, shutil, gc
+
+gc.enable()
 
 
 from mutagen.easyid3 import EasyID3
 from mutagen.mp3 import MP3
 
-
-##### сделать запрос, если файл уже существует
-
-
-
-mvDir = u'tagged'
 
 
 default_label_text = \
@@ -49,14 +50,18 @@ class utag_window:
 		self.window.set_title('UTag')
 #		self.window.set_border_width(0)
 		
-		self.window.connect("delete_event", self.quit_dialog)
+		self.window.connect("delete_event", self.dialog)
 		self.window.connect("destroy", gtk.main_quit)
 		
 		self.Vbox = gtk.VBox(False, 0)
 		
+		
+		self.labelframe = gtk.Frame(u'Информация')
+		self.labelframe.show()
 		self.label = gtk.Label()
 		self.label.show()
-		self.Vbox.add(self.label)
+		self.labelframe.add(self.label)
+		self.Vbox.add(self.labelframe)
 		
 		# entrances
 		
@@ -107,7 +112,7 @@ class utag_window:
 		self.Hbox.add(self.delete_and_next_button)
 		self.delete_and_next_button.show()
 		
-		self.next_button = gtk.Button(u'Следующий')
+		self.next_button = gtk.Button(u'Пропустить')
 		self.next_button.connect('clicked', self.next_file)
 		self.Hbox.add(self.next_button)
 		self.next_button.show()
@@ -147,21 +152,23 @@ class utag_window:
 		
 		newName = (u'%s - %s.mp3' % \
 			(
-				(self.artist.get_text()    if   self.artist.get_text()   else    u'Неизвестно'),
-				(self.title.get_text()      if   self.title.get_text()     else    u'Неизвестно')
+				(self.artist.get_text()	if	self.artist.get_text()	else    u'Неизвестно'),
+				(self.title.get_text()	if	self.title.get_text()	else    u'Неизвестно')
 			)
 		)
 		
-		#### сделать запрос, если файл уже существует
-		shutil.move(self.mp3.filename, mvDir)
+		if os.path.exists("%s/%s" % (mvDir, newName)):
+			if not self.dialog(title=u'Заменить?', message=u'Файл "%s" уже существует в папке "%s"' % (newName, mvDir)):
+				os.remove("%s/%s" % (mvDir, newName))
+				shutil.move(self.mp3.filename, "%s/%s" % (mvDir, newName))	
+				print u'Файл "%s" был перемещён в папку "%s" с названием "%s" с перезаписью' % (self.mp3.filename, mvDir, newName)
+				self.next_file()
+		else:
+			shutil.move(self.mp3.filename, "%s/%s" % (mvDir, newName))	
+			print u'Файл "%s" был перемещён в папку "%s" с названием "%s"' % (self.mp3.filename, mvDir, newName)
+			self.next_file()
 		
-		print u'Файл "%s" был перемещён в папку "%s"' % (self.mp3.filename, mvDir)
 		
-		os.rename("%s/%s" % (mvDir, self.mp3.filename), "%s/%s" % (mvDir, newName))
-		
-		print u'Файл "%s" был переименован в "%s"' % (self.mp3.filename, newName)
-		
-		self.next_file()
 	
 	
 	def delete_and_next_file(self, widget=None):
@@ -224,20 +231,20 @@ class utag_window:
 
 
 
-	def quit_dialog(self, widget, event):
+	def dialog(self, widget=None, event=None, title=u'Уверены?', message=u'Несохранённые изменения будут утеряны!'):
 		self.dialog = gtk.MessageDialog(
 			parent=self.window,
 			type=gtk.MESSAGE_QUESTION,
 			buttons=gtk.BUTTONS_YES_NO,
-			message_format=u'Несохранённые изменения будут утеряны!'
+			message_format=message
 		)
 		
-		self.dialog.set_title(u'Уверены?')
+		self.dialog.set_title(title)
 		
 		response = self.dialog.run()
 		self.dialog.destroy()
 		
-		return (False if response == gtk.RESPONSE_YES else True)
+		return not response == gtk.RESPONSE_YES
 		
 #		if response == gtk.RESPONSE_YES:
 #			return False
@@ -263,6 +270,7 @@ def main():
 			else:
 				print(u'Невозможно открыть файл "%s": это не MP3 файл' % x)
 		if mp3files:
+			os.chdir(os.path.split(os.path.abspath(mp3files[0]))[0])
 			utag_window(mp3files)
 			gtk.main()
 		else:
