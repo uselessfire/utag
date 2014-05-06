@@ -18,6 +18,7 @@ gc.enable()
 from traceback import format_exc
 
 from mutagen.easyid3 import EasyID3
+from mutagen.id3 import ID3, APIC
 from mutagen.mp3 import MP3
 
 
@@ -57,12 +58,12 @@ class utag_window:
 		self.Vbox = gtk.VBox(False, 0)
 		
 		
-		self.labelframe = gtk.Frame(u'Информация')
-		self.labelframe.show()
+		frame = gtk.Frame(u'Информация')
+		frame.show()
 		self.label = gtk.Label()
 		self.label.show()
-		self.labelframe.add(self.label)
-		self.Vbox.add(self.labelframe)
+		frame.add(self.label)
+		self.Vbox.add(frame)
 		
 		# entrances
 		
@@ -92,6 +93,19 @@ class utag_window:
 		# tracknumber
 		response, self.tracknumber = self.tag_entry(u'Номер трека')
 		self.Vbox.add(response)
+		
+		
+		imageFilter = gtk.FileFilter()
+		imageFilter.add_mime_type('image/jpeg')
+		imageFilter.add_mime_type('image/png')
+		frame = gtk.Frame(u'Обложка')
+		frame.show()
+		self.albumArtChooser = gtk.FileChooserButton(u'Выберите обложку')
+		self.albumArtChooser.set_filter(imageFilter)
+		self.albumArtChooser.show()
+		frame.add(self.albumArtChooser)
+		self.Vbox.add(frame)
+		
 		
 		
 		self.entrances = {
@@ -157,6 +171,19 @@ class utag_window:
 		
 		try:
 			self.mp3.save()
+			artFile = self.albumArtChooser.get_filename()
+			if artFile:
+				self.id3 = MP3(self.mp3.filename, ID3=ID3)
+				self.id3.tags.add(
+					APIC(
+						encoding=3,
+						mime=('image/png' if artFile.endswith('.png') else 'image/jpeg'),
+						type=3,
+						data=open(artFile).read()
+					)
+				)
+				self.id3.save()
+			
 		except:
 			if self.dialog(title=u'Произошла ошибка', message=u'Произошла ошибка при сохранении файла "%s":\n%s.\nПовторить?' % (self.mp3.filename, format_exc())):
 				self.next_file()
@@ -173,7 +200,7 @@ class utag_window:
 			)
 			
 			if os.path.exists("%s/%s" % (mvDir, newName)):
-				if not self.dialog(title=u'Заменить?', message=u'Файл "%s" уже существует в папке "%s"' % (newName, mvDir)):
+				if not self.dialog(title=u'Конфликт', message=u'Файл "%s" уже существует в папке "%s"\nЗаменить?' % (newName, mvDir)):
 					os.remove("%s/%s" % (mvDir, newName))
 					shutil.move(self.mp3.filename, "%s/%s" % (mvDir, newName))	
 					print u'Файл "%s" был перемещён в папку "%s" с названием "%s" с перезаписью' % (self.mp3.filename, mvDir, newName)
@@ -219,6 +246,7 @@ class utag_window:
 					entry.set_text(self.mp3[name][0])
 				else:
 					entry.set_text(str())
+			self.albumArtChooser.unselect_all()
 			self.update_label()
 			print u'Переход к файлу "%s"' % self.mp3.filename
 		else:
@@ -287,7 +315,7 @@ def main():
 		files = (sys.argv if sys.argv else os.listdir(chr(46)))
 		mp3files = list()
 		for x in files:
-			if (not os.path.isdir(x)) and x.endswith('mp3'):
+			if (not os.path.isdir(x)) and x.lower().endswith('mp3'):
 				mp3files.append(x)
 			else:
 				print(u'Невозможно открыть файл "%s": это не MP3 файл' % x)
