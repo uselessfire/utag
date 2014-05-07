@@ -1,0 +1,14 @@
+[Desktop Entry]
+Version=1.0
+Name=UTag
+GenericName=MP3 tag editor
+Comment=MP3 tag editor
+Name[ru]=UTag
+GenericName[ru]=Изменение MP3 тегов
+Comment[ru]=Изменение MP3 тегов и обложек альбомов
+Exec=/usr/bin/utag %U
+Terminal=false
+Type=Application
+Categories=AudioVideo;
+MimeType=audio/x-mp3;
+Keywords=MP3;
