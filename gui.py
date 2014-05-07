@@ -13,8 +13,6 @@ mvDir = "tagged"
 
 import sys, os, gtk, shutil, gc
 
-gc.enable()
-
 from traceback import format_exc
 
 from mutagen.easyid3 import EasyID3
@@ -34,10 +32,10 @@ u'''Название файла: "%s" (%i/%i)
 Help = u'''UTag - изменение тегов mp3 файлов
 
 Использование:
---help | -h | help - эта справка
+utag --help | -h | help - эта справка
+utag <имена файлов> - изменить теги этих файлов
 
-UTag <имена файлов> - изменить теги этих файлов
-'''
+После сохранения файл будет перемещён в папку "%s" под именем "<исполнитель> - <название>.mp3"''' % mvDir 
 
 
 
@@ -309,8 +307,13 @@ class utag_window:
 		
 
 
-def completion(number): # русские окончания после чисел
-	number = int(str(int(number))[-1]) # не знаю как это ещё реализовать, нужно получить последнее цифру из числа
+def completion(number):
+	number = int(number)
+	if number > 10:
+		if number <= 20:
+			return unicode()
+		else:
+			number %= 10
 	if number == 1:
 		return u'а'
 	elif number in (2, 3, 4):
@@ -348,5 +351,5 @@ if __name__ == '__main__':
 	try:
 		main()
 	except KeyboardInterrupt:
-		sys.exit()
+		sys.exit(0)
 
