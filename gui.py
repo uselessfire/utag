@@ -5,7 +5,7 @@
 #  See LICENSE.txt for more details.
 #  © UselessFire
 
-# v. 0.3.2 Beta Public
+# v. 0.4 Beta Public
 
 
 mvDir = "tagged"
@@ -25,9 +25,9 @@ from mutagen.mp3 import MP3
 
 default_label_text = \
 u'''Название файла: "%s" (%i/%i)
-Длина: %i секунд (%i минут %i секунд)
+Длина: %i секунд (%i минут%s %i секунд%s)
 Битрейт: %i КБ\с
-Файл будет переименован в '''
+Файл будет переименован в "%s"'''
 
 
 
@@ -255,16 +255,21 @@ class utag_window:
 
 
 	def update_label(self):
+		minutes = self.mp3.info.length / 60
+		seconds = self.mp3.info.length % 60
 		self.label_text = default_label_text % \
 			(
 			self.mp3.filename,
-			self.number,
-			self.All,
-			self.mp3.info.length, 
-			self.mp3.info.length / 60,
-			self.mp3.info.length % 60,
-			self.mp3.info.bitrate / 1024
-			) + '"%s"'
+			self.number, # номер файла
+			self.All, # число всех файлов
+			self.mp3.info.length,  # длина в секундах
+			minutes,
+			completion(minutes), # добавляем окончание для минут
+			seconds,
+			completion(seconds), # добавляем окончание для секунд
+			self.mp3.info.bitrate / 1024,
+			'%s'
+			)
 		self.update_newName()
 		
 		
@@ -302,6 +307,16 @@ class utag_window:
 #			return True
 		
 		
+
+
+def completion(number): # русские окончания после чисел
+	number = int(str(int(number))[-1]) # не знаю как это ещё реализовать, нужно получить последнее цифру из числа
+	if number == 1:
+		return u'а'
+	elif number in (2, 3, 4):
+		return u'ы'
+	else:
+		return unicode()
 
 
 
