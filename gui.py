@@ -5,10 +5,16 @@
 #  See LICENSE.txt for more details.
 #  © UselessFire
 
-# v. 0.4 Beta Public
+# v. 0.5 Beta Public
 
 
-mvDir = "tagged"
+
+
+# добавить новые поля
+# их же в remove-tags
+# фикс ошибки при отсутсвии файла
+# настройки
+# utagLibrary
 
 
 import sys, os, gtk, shutil, gc
@@ -19,6 +25,48 @@ from mutagen.easyid3 import EasyID3
 from mutagen.id3 import ID3, APIC
 from mutagen.mp3 import MP3
 
+
+
+
+def File(confFile, text=None, ini=False):
+	if text is None:
+		if os.path.exists(confFile):
+			noSetFile = open(confFile, 'r')
+			text = noSetFile.read()
+			noSetFile.close()
+			return text.decode('utf8')
+		else:
+			return File(confFile, str())
+	else:
+		if ini:
+			if os.path.exists(confFile):
+				return File(confFile)
+			else:
+				return File(confFile, text)
+		else:
+			confFile, text = unicode(confFile), unicode(text)
+			folder = os.path.dirname(confFile)
+			if folder and not os.path.exists(folder):
+				os.makedirs(folder)
+			noSetFile = open(confFile, 'w')
+			noSetFile.write(text)
+			noSetFile.close()
+			return text
+ 
+
+
+configFile = '%s/.config/utag' % os.path.expanduser("~")
+
+
+defaultConfig = \
+'''# False - нет
+# True - да
+mvDir = '.' # каталог, в который будут перемещаться отредактированная музыка
+artistSort = True # сортировать артистов по папкам
+utagLibrary = False # активировать создание UTag-подобной библиотеки'''
+
+	
+exec(File(configFile, defaultConfig, True))
 
 
 default_label_text = \
@@ -35,8 +83,10 @@ Help = u'''UTag - изменение тегов mp3 файлов
 utag --help | -h | help - эта справка
 utag <имена файлов> - изменить теги этих файлов
 
-После сохранения файл будет перемещён в папку "%s" под именем "<исполнитель> - <название>.mp3"''' % mvDir 
+После сохранения файл будет перемещён в папку "%s" под именем "<исполнитель> - <название>.mp3"''' % mvDir
 
+
+title = u'UTag - %s'
 
 
 class utag_window:
@@ -47,8 +97,10 @@ class utag_window:
 		
 		self.window = gtk.Window()
 		
-		self.window.set_title('UTag')
+#		self.window.set_title('UTag')
 #		self.window.set_border_width(0)
+		
+		self.window.set_resizable(False)
 		
 		self.window.connect("delete_event", self.dialog)
 		self.window.connect("destroy", gtk.main_quit)
@@ -80,17 +132,90 @@ class utag_window:
 		self.Vbox.add(response)
 		self.title.connect("activate", self.update_newName)
 		
+		
+		temp = gtk.Expander(u'Дополнительно')
+		temp.show()
+		self.Vbox.add(temp)
+		self.expanderBox = gtk.VBox()
+		self.expanderBox.show()
+		temp.add(self.expanderBox)
+		
 		# date
-		response, self.date = self.tag_entry(u'Год')
-		self.Vbox.add(response)
+		frame = gtk.Frame(u'Год')
+		frame.show()
+		adj = gtk.Adjustment(0.0, 1.0, 2999.0, 1.0, 1.0, 0.0)
+		self.date = gtk.SpinButton(adj, 0, 0)
+		self.date.show()
+		frame.add(self.date)
+		self.expanderBox.add(frame)
 		
 		# genre
 		response, self.genre = self.tag_entry(u'Жанр')
-		self.Vbox.add(response)
+		self.expanderBox.add(response)
 		
 		# tracknumber
-		response, self.tracknumber = self.tag_entry(u'Номер трека')
-		self.Vbox.add(response)
+		frame = gtk.Frame(u'Номер трека')
+		frame.show()
+		adj = gtk.Adjustment(0.0, 1.0, 99.0, 1.0, 1.0, 0.0)
+		self.tracknumber = gtk.SpinButton(adj, 0, 0)
+		self.tracknumber.show()
+		frame.add(self.tracknumber)
+		self.expanderBox.add(frame)
+		
+		# website
+		response, self.website = self.tag_entry(u'Сайт')
+		self.expanderBox.add(response)
+		
+		# organization
+		response, self.organization = self.tag_entry(u'Организация')
+		self.expanderBox.add(response)
+		
+		# encodedby
+		response, self.encodedby = self.tag_entry(u'Закодировано')
+		self.expanderBox.add(response)
+		
+		# copyright
+		response, self.copyright = self.tag_entry(u'Авторские права')
+		self.expanderBox.add(response)
+		
+		# discnumber
+		frame = gtk.Frame(u'Номер диска')
+		frame.show()
+		adj = gtk.Adjustment(0.0, 1.0, 99.0, 1.0, 1.0, 0.0)
+		self.discnumber = gtk.SpinButton(adj, 0, 0)
+		self.discnumber.show()
+		frame.add(self.discnumber)
+		self.expanderBox.add(frame)
+		
+		# composer
+		response, self.composer = self.tag_entry(u'Композитор')
+		self.expanderBox.add(response)
+		
+		# lyricist
+		response, self.lyricist = self.tag_entry(u'Слова')
+		self.expanderBox.add(response)
+		
+		# bpm
+		frame = gtk.Frame(u'Темп (ударов в минуту)')
+		frame.show()
+		adj = gtk.Adjustment(0.0, 1.0, 9999.0, 0.8, 1.0, 0.0)
+		self.bpm = gtk.SpinButton(adj, 0, 0)
+		self.bpm.show()
+		frame.add(self.bpm)
+		self.expanderBox.add(frame)
+		
+		# media
+		response, self.media = self.tag_entry(u'Тип')
+		self.expanderBox.add(response)
+		
+		# length
+		frame = gtk.Frame(u'Длина')
+		frame.show()
+		adj = gtk.Adjustment(0.0, 1.0, 9999.0, 0.8, 1.0, 0.0)
+		self.length = gtk.SpinButton(adj, 0, 0)
+		self.length.show()
+		frame.add(self.length)
+		self.expanderBox.add(frame)
 		
 		
 		imageFilter = gtk.FileFilter()
@@ -102,7 +227,7 @@ class utag_window:
 		self.albumArtChooser.set_filter(imageFilter)
 		self.albumArtChooser.show()
 		frame.add(self.albumArtChooser)
-		self.Vbox.add(frame)
+		self.expanderBox.add(frame)
 		
 		
 		
@@ -112,7 +237,17 @@ class utag_window:
 			'title': self.title,
 			'date': self.date,
 			'genre': self.genre,
-			'tracknumber': self.tracknumber
+			'tracknumber': self.tracknumber,
+			'website': self.website,
+			'organization': self.organization,
+			'encodedby': self.encodedby,
+			'copyright': self.copyright,
+			'discnumber': self.discnumber,
+			'composer': self.composer,
+			'lyricist': self.lyricist,
+			'bpm': self.bpm,
+			'media': self.media,
+			'length': self.length
 		}
 		
 		
@@ -164,8 +299,8 @@ class utag_window:
 					if self.dialog(title=u'Произошла ошибка', message=u'Произошла ошибка при удалении тега "%s" в файле "%s":\n%s.\nПовторить?' % (name, self.mp3.filename, format_exc())):
 						self.next_file()
 					else:
-						self.save_and_next_file()
-					return
+						return self.save_and_next_file()
+					
 		
 		try:
 			self.mp3.save()
@@ -197,17 +332,27 @@ class utag_window:
 				)
 			)
 			
-			if os.path.exists("%s/%s" % (mvDir, newName)):
-				if not self.dialog(title=u'Конфликт', message=u'Файл "%s" уже существует в папке "%s"\nЗаменить?' % (newName, mvDir)):
-					os.remove("%s/%s" % (mvDir, newName))
-					shutil.move(self.mp3.filename, "%s/%s" % (mvDir, newName))	
-					print u'Файл "%s" был перемещён в папку "%s" с названием "%s" с перезаписью' % (self.mp3.filename, mvDir, newName)
+			newDir = ("%s/%s" % (mvDir, (self.artist.get_text() if self.artist.get_text() else u'Неизвестно')) if artistSort else mvDir)
+			
+			if artistSort and (not os.path.exists(newDir)):
+				os.mkdir(newDir)
+			
+			newPath = "%s/%s" % (newDir, newName)
+			
+			if os.path.abspath(newPath) != os.path.abspath(self.mp3.filename):
+				if os.path.exists(newPath):
+					if not self.dialog(title=u'Конфликт', message=u'Файл "%s" уже существует в папке "%s"\nЗаменить?' % (newName, newDir)):
+						os.remove(newPath)
+						shutil.move(self.mp3.filename, newPath)	
+						print u'Файл "%s" был перемещён в папку "%s" с названием "%s" с перезаписью' % (self.mp3.filename, newDir, newName)
+						self.next_file()
+				else:
+					shutil.move(self.mp3.filename, newPath)	
+					print u'Файл "%s" был перемещён в папку "%s" с названием "%s"' % (self.mp3.filename, newDir, newName)
 					self.next_file()
 			else:
-				shutil.move(self.mp3.filename, "%s/%s" % (mvDir, newName))	
-				print u'Файл "%s" был перемещён в папку "%s" с названием "%s"' % (self.mp3.filename, mvDir, newName)
+				print u'Файл "%s" был оставлен с текущим именем' % self.mp3.filename
 				self.next_file()
-		
 		
 	
 	
@@ -246,6 +391,7 @@ class utag_window:
 					entry.set_text(str())
 			self.albumArtChooser.unselect_all()
 			self.update_label()
+			self.window.set_title(title % self.mp3.filename)
 			print u'Переход к файлу "%s"' % self.mp3.filename
 		else:
 			gtk.main_quit()
@@ -299,12 +445,6 @@ class utag_window:
 		
 		return not response == gtk.RESPONSE_YES
 		
-#		if response == gtk.RESPONSE_YES:
-#			return False
-#		else:
-#			return True
-		
-		
 
 
 def completion(number):
@@ -343,6 +483,8 @@ def main():
 			gtk.main()
 		else:
 			print(u'\n\nНе указано файлов')
+	import time
+	time.sleep(60)
 		
 
 

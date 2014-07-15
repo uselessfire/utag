@@ -11,7 +11,7 @@
 #  © UselessFire
 
 
-mvDir = u'tagged'
+mvDir = 'tagged'
 
 
 Help = u'''UTag - изменение тегов mp3 файлов
