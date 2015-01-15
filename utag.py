@@ -5,21 +5,25 @@
 #  See LICENSE.txt for more details.
 #  © UselessFire
 
-# v. 0.5 Beta Public
+# v. 0.6 Beta Public
 
 
 
 
-# добавить новые поля
-# их же в remove-tags
 # фикс ошибки при отсутсвии файла
+# чекбокс "удалить всё" в дополнительных
 # настройки
-# utagLibrary
+# justify label to left
 
 
 import sys, os, gtk, shutil, gc
 
 from traceback import format_exc
+
+core = os.path.abspath(__file__)
+coreDir = os.path.split(core)[0]
+
+sys.path.insert(0, coreDir + '/libs.zip')
 
 from mutagen.easyid3 import EasyID3
 from mutagen.id3 import ID3, APIC
@@ -52,18 +56,19 @@ def File(confFile, text=None, ini=False):
 			noSetFile.write(text)
 			noSetFile.close()
 			return text
- 
 
 
-configFile = '%s/.config/utag' % os.path.expanduser("~")
+
+
+
+configFile = '%s/.config/utag.conf' % os.path.expanduser("~")
 
 
 defaultConfig = \
 '''# False - нет
 # True - да
 mvDir = '.' # каталог, в который будут перемещаться отредактированная музыка
-artistSort = True # сортировать артистов по папкам
-utagLibrary = False # активировать создание UTag-подобной библиотеки'''
+artistSort = True # сортировать артистов по папкам'''
 
 	
 exec(File(configFile, defaultConfig, True))
@@ -112,6 +117,7 @@ class utag_window:
 		frame.show()
 		self.label = gtk.Label()
 		self.label.show()
+		self.label.set_justify(gtk.JUSTIFY_LEFT)
 		frame.add(self.label)
 		self.Vbox.add(frame)
 		
@@ -124,8 +130,25 @@ class utag_window:
 		
 		
 		# album
-		response, self.album = self.tag_entry(u'Альбом')
-		self.Vbox.add(response)
+		frame = gtk.Frame(u'Альбом')
+		frame.show()
+		self.Vbox.add(frame)
+		
+		VBox = gtk.VBox()
+		VBox.show()
+		frame.add(VBox)
+		
+		self.asArtist = gtk.CheckButton(u'Как исполнитель')
+		self.asArtist.show()
+		self.asArtist.connect("toggled", self.buttonHandler)
+		VBox.add(self.asArtist)
+		
+		self.album = gtk.Entry(max=64)
+		self.album.show()
+		VBox.add(self.album)
+		
+#		response, self.album = self.tag_entry(u'Альбом')
+#		self.Vbox.add(response)
 		
 		# title
 		response, self.title = self.tag_entry(u'Название')
@@ -136,98 +159,130 @@ class utag_window:
 		temp = gtk.Expander(u'Дополнительно')
 		temp.show()
 		self.Vbox.add(temp)
-		self.expanderBox = gtk.VBox()
+		
+		self.expanderBox = gtk.HBox()
 		self.expanderBox.show()
 		temp.add(self.expanderBox)
 		
+		self.expanderBox1 = gtk.VBox()
+		self.expanderBox1.show()
+		self.expanderBox.add(self.expanderBox1)
+		
+		self.expanderBox2 = gtk.VBox()
+		self.expanderBox2.show()
+		self.expanderBox.add(self.expanderBox2)
+		
+		self.expanderBox3 = gtk.VBox()
+		self.expanderBox3.show()
+		self.expanderBox.add(self.expanderBox3)
+		
 		# date
-		frame = gtk.Frame(u'Год')
-		frame.show()
-		adj = gtk.Adjustment(0.0, 1.0, 2999.0, 1.0, 1.0, 0.0)
-		self.date = gtk.SpinButton(adj, 0, 0)
-		self.date.show()
-		frame.add(self.date)
-		self.expanderBox.add(frame)
+#		frame = gtk.Frame(u'Год')
+#		frame.show()
+#		adj = gtk.Adjustment(0.0, 1.0, 2999.0, 1.0, 1.0, 0.0)
+#		self.date = gtk.SpinButton(adj, 0, 0)
+#		self.date.show()
+#		frame.add(self.date)
+#		self.expanderBox1.add(frame)
+		response, self.date = self.tag_entry(u'Год')
+		self.expanderBox1.add(response)
 		
 		# genre
 		response, self.genre = self.tag_entry(u'Жанр')
-		self.expanderBox.add(response)
+		self.expanderBox2.add(response)
 		
 		# tracknumber
-		frame = gtk.Frame(u'Номер трека')
-		frame.show()
-		adj = gtk.Adjustment(0.0, 1.0, 99.0, 1.0, 1.0, 0.0)
-		self.tracknumber = gtk.SpinButton(adj, 0, 0)
-		self.tracknumber.show()
-		frame.add(self.tracknumber)
-		self.expanderBox.add(frame)
+#		frame = gtk.Frame(u'Номер трека')
+#		frame.show()
+#		adj = gtk.Adjustment(0.0, 1.0, 99.0, 1.0, 1.0, 0.0)
+#		self.tracknumber = gtk.SpinButton(adj, 0, 0)
+#		self.tracknumber.show()
+#		frame.add(self.tracknumber)
+#		self.expanderBox3.add(frame)
+		response, self.tracknumber = self.tag_entry(u'Номер трека')
+		self.expanderBox3.add(response)
 		
 		# website
 		response, self.website = self.tag_entry(u'Сайт')
-		self.expanderBox.add(response)
+		self.expanderBox1.add(response)
 		
 		# organization
 		response, self.organization = self.tag_entry(u'Организация')
-		self.expanderBox.add(response)
+		self.expanderBox2.add(response)
 		
 		# encodedby
 		response, self.encodedby = self.tag_entry(u'Закодировано')
-		self.expanderBox.add(response)
+		self.expanderBox3.add(response)
 		
 		# copyright
 		response, self.copyright = self.tag_entry(u'Авторские права')
-		self.expanderBox.add(response)
+		self.expanderBox1.add(response)
 		
 		# discnumber
-		frame = gtk.Frame(u'Номер диска')
-		frame.show()
-		adj = gtk.Adjustment(0.0, 1.0, 99.0, 1.0, 1.0, 0.0)
-		self.discnumber = gtk.SpinButton(adj, 0, 0)
-		self.discnumber.show()
-		frame.add(self.discnumber)
-		self.expanderBox.add(frame)
+#		frame = gtk.Frame(u'Номер диска')
+#		frame.show()
+#		adj = gtk.Adjustment(0.0, 1.0, 99.0, 1.0, 1.0, 0.0)
+#		self.discnumber = gtk.SpinButton(adj, 0, 0)
+#		self.discnumber.show()
+#		frame.add(self.discnumber)
+#		self.expanderBox2.add(frame)
+		response, self.discnumber = self.tag_entry(u'Номер диска')
+		self.expanderBox2.add(response)
 		
 		# composer
 		response, self.composer = self.tag_entry(u'Композитор')
-		self.expanderBox.add(response)
+		self.expanderBox3.add(response)
 		
 		# lyricist
 		response, self.lyricist = self.tag_entry(u'Слова')
-		self.expanderBox.add(response)
+		self.expanderBox1.add(response)
 		
 		# bpm
-		frame = gtk.Frame(u'Темп (ударов в минуту)')
-		frame.show()
-		adj = gtk.Adjustment(0.0, 1.0, 9999.0, 0.8, 1.0, 0.0)
-		self.bpm = gtk.SpinButton(adj, 0, 0)
-		self.bpm.show()
-		frame.add(self.bpm)
-		self.expanderBox.add(frame)
+#		frame = gtk.Frame(u'Темп (ударов в минуту)')
+#		frame.show()
+#		adj = gtk.Adjustment(0.0, 1.0, 9999.0, 0.8, 1.0, 0.0)
+#		self.bpm = gtk.SpinButton(adj, 0, 0)
+#		self.bpm.show()
+#		frame.add(self.bpm)
+#		self.expanderBox2.add(frame)
+		response, self.bpm = self.tag_entry(u'Темп (ударов в минуту)')
+		self.expanderBox2.add(response)
 		
 		# media
 		response, self.media = self.tag_entry(u'Тип')
-		self.expanderBox.add(response)
+		self.expanderBox2.add(response)
 		
 		# length
-		frame = gtk.Frame(u'Длина')
-		frame.show()
-		adj = gtk.Adjustment(0.0, 1.0, 9999.0, 0.8, 1.0, 0.0)
-		self.length = gtk.SpinButton(adj, 0, 0)
-		self.length.show()
-		frame.add(self.length)
-		self.expanderBox.add(frame)
+#		frame = gtk.Frame(u'Длина')
+#		frame.show()
+#		adj = gtk.Adjustment(0.0, 1.0, 9999.0, 0.8, 1.0, 0.0)
+#		self.length = gtk.SpinButton(adj, 0, 0)
+#		self.length.show()
+#		frame.add(self.length)
+#		self.expanderBox1.add(frame)
+		response, self.length = self.tag_entry(u'Длина')
+		self.expanderBox1.add(response)
 		
+		
+		frame = gtk.Frame(u'Обложка')
+		frame.show()
+		VBox = gtk.VBox()
+		VBox.show()
+		frame.add(VBox)
+		
+		self.deleteAlbumArt = gtk.CheckButton(u'Удалить')
+		self.deleteAlbumArt.show()
+		VBox.add(self.deleteAlbumArt)
 		
 		imageFilter = gtk.FileFilter()
 		imageFilter.add_mime_type('image/jpeg')
 		imageFilter.add_mime_type('image/png')
-		frame = gtk.Frame(u'Обложка')
-		frame.show()
 		self.albumArtChooser = gtk.FileChooserButton(u'Выберите обложку')
 		self.albumArtChooser.set_filter(imageFilter)
 		self.albumArtChooser.show()
-		frame.add(self.albumArtChooser)
-		self.expanderBox.add(frame)
+		VBox.add(self.albumArtChooser)
+		
+		self.expanderBox3.add(frame)
 		
 		
 		
@@ -251,7 +306,7 @@ class utag_window:
 		}
 		
 		
-		self.Hbox = gtk.HBox(False, 0)
+		self.Hbox = gtk.HBox(True, 0)
 		
 		
 		
@@ -288,6 +343,8 @@ class utag_window:
 	
 	
 	def save_and_next_file(self, widget=None):
+		if self.asArtist.get_active():
+			self.album.set_text(self.artist.get_text())
 		for name, entry in self.entrances.items():
 			text = entry.get_text()
 			if text:
@@ -305,7 +362,13 @@ class utag_window:
 		try:
 			self.mp3.save()
 			artFile = self.albumArtChooser.get_filename()
-			if artFile:
+			if self.deleteAlbumArt.get_active():
+				self.id3 = MP3(self.mp3.filename, ID3=ID3)
+				if u'APIC' in self.id3.tags: del self.id3.tags[u'APIC']
+				if u'APIC:' in self.id3.tags: del self.id3.tags[u'APIC:']
+				if u'APIC:None' in self.id3.tags: del self.id3.tags[u'APIC:None']
+				self.id3.save()
+			elif artFile:
 				self.id3 = MP3(self.mp3.filename, ID3=ID3)
 				self.id3.tags.add(
 					APIC(
@@ -415,17 +478,34 @@ class utag_window:
 			'%s'
 			)
 		self.update_newName()
-		
+	
+	def buttonHandler(self, button):
+		if button.get_active():
+			self.album.hide()
+		else:
+			self.album.show()
 		
 	update_newName = lambda self, widget=None: self.label.set_text(
 		self.label_text % \
 				(u'%s - %s.mp3' % \
 					(
-						(self.artist.get_text()    if   self.artist.get_text()   else    u'Неизвестно'),
-						(self.title.get_text()      if   self.title.get_text()     else    u'Неизвестно')
+						(self.artist.get_text()		if	self.artist.get_text()	else	u'Неизвестно'),
+						(self.title.get_text()		if	self.title.get_text()	else	u'Неизвестно')
 					)
 				)
 		)
+
+#	def update_newName(self, widget=None):
+#		self.label.set_text(
+#			self.label_text % \
+#				(u'%s - %s.mp3' % \
+#					(
+#						(self.artist.get_text()		if	self.artist.get_text()	else	u'Неизвестно'),
+#						(self.title.get_text()		if	self.title.get_text()	else	u'Неизвестно')
+#					)
+#				)
+#		)
+#		self.label.set_justify(gtk.JUSTIFY_LEFT)
 
 
 
@@ -483,8 +563,6 @@ def main():
 			gtk.main()
 		else:
 			print(u'\n\nНе указано файлов')
-	import time
-	time.sleep(60)
 		
 
 
@@ -493,5 +571,6 @@ if __name__ == '__main__':
 	try:
 		main()
 	except KeyboardInterrupt:
-		sys.exit(0)
+		pass
+	sys.exit(0)
 
