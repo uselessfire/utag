@@ -5,7 +5,7 @@
 #  See LICENSE.txt for more details.
 #  © UselessFire
 
-# v. 0.6 Beta Public
+# v. 0.7 Beta Public
 
 
 
@@ -140,7 +140,7 @@ class utag_window:
 		
 		self.asArtist = gtk.CheckButton(u'Как исполнитель')
 		self.asArtist.show()
-		self.asArtist.connect("toggled", self.buttonHandler)
+		self.asArtist.connect("toggled", self.asArtistHandler)
 		VBox.add(self.asArtist)
 		
 		self.album = gtk.Entry(max=64)
@@ -160,9 +160,18 @@ class utag_window:
 		temp.show()
 		self.Vbox.add(temp)
 		
+		Vbox = gtk.VBox()
+		Vbox.show()
+		temp.add(Vbox)
+		
+		self.deleteAll = gtk.CheckButton(u'Очистить всё')
+		self.deleteAll.show()
+		Vbox.add(self.deleteAll)
+		self.deleteAll.connect("toggled", self.deleteAllHandler)
+		
 		self.expanderBox = gtk.HBox()
 		self.expanderBox.show()
-		temp.add(self.expanderBox)
+		Vbox.add(self.expanderBox)
 		
 		self.expanderBox1 = gtk.VBox()
 		self.expanderBox1.show()
@@ -285,25 +294,28 @@ class utag_window:
 		self.expanderBox3.add(frame)
 		
 		
-		
-		self.entrances = {
-			'artist': self.artist,
-			'album': self.album,
-			'title': self.title,
-			'date': self.date,
-			'genre': self.genre,
-			'tracknumber': self.tracknumber,
-			'website': self.website,
-			'organization': self.organization,
-			'encodedby': self.encodedby,
-			'copyright': self.copyright,
-			'discnumber': self.discnumber,
-			'composer': self.composer,
-			'lyricist': self.lyricist,
-			'bpm': self.bpm,
-			'media': self.media,
-			'length': self.length
+		self.mainEntrances = {
+			'artist':		self.artist,
+			'album':		self.album,
+			'title':		self.title
 		}
+		self.additionalEntrances = {
+			'date':			self.date,
+			'genre':		self.genre,
+			'tracknumber':	self.tracknumber,
+			'website':		self.website,
+			'organization':	self.organization,
+			'encodedby': 	self.encodedby,
+			'copyright': 	self.copyright,
+			'discnumber': 	self.discnumber,
+			'composer': 	self.composer,
+			'lyricist':		self.lyricist,
+			'bpm':			self.bpm,
+			'media':		self.media,
+			'length':		self.length
+		}
+		self.entrances = self.mainEntrances.copy()
+		self.entrances.update(self.additionalEntrances)
 		
 		
 		self.Hbox = gtk.HBox(True, 0)
@@ -346,8 +358,9 @@ class utag_window:
 		if self.asArtist.get_active():
 			self.album.set_text(self.artist.get_text())
 		for name, entry in self.entrances.items():
-			text = entry.get_text()
-			if text:
+			text = entry.get_text() ####################################
+			############################################################ хандлер чекбокса удаления
+			if text and ((not self.deleteAll.get_active()) or name in self.mainEntrances):
 				self.mp3[name] = text
 			elif name in self.mp3:
 				try:
@@ -390,7 +403,7 @@ class utag_window:
 			
 			newName = (u'%s - %s.mp3' % \
 				(
-					(self.artist.get_text()	if	self.artist.get_text()	else    u'Неизвестно'),
+					(self.artist.get_text()		if	self.artist.get_text()		else    u'Неизвестно'),
 					(self.title.get_text()		if	self.title.get_text()		else    u'Неизвестно')
 				)
 			)
@@ -401,8 +414,9 @@ class utag_window:
 				os.mkdir(newDir)
 			
 			newPath = "%s/%s" % (newDir, newName)
-			
-			if os.path.abspath(newPath) != os.path.abspath(self.mp3.filename):
+			print os.path.realpath(newPath)
+			print os.path.realpath(self.mp3.filename)
+			if os.path.realpath(newPath) != os.path.realpath(self.mp3.filename):
 				if os.path.exists(newPath):
 					if not self.dialog(title=u'Конфликт', message=u'Файл "%s" уже существует в папке "%s"\nЗаменить?' % (newName, newDir)):
 						os.remove(newPath)
@@ -479,12 +493,21 @@ class utag_window:
 			)
 		self.update_newName()
 	
-	def buttonHandler(self, button):
+	def asArtistHandler(self, button):
 		if button.get_active():
 			self.album.hide()
 		else:
 			self.album.show()
-		
+	
+	def deleteAllHandler(self, button):
+		if button.get_active():
+			for entrance in self.additionalEntrances.values():
+				entrance.parent.hide()
+		else:
+			for entrance in self.additionalEntrances.values():
+				entrance.parent.show()
+	
+	
 	update_newName = lambda self, widget=None: self.label.set_text(
 		self.label_text % \
 				(u'%s - %s.mp3' % \
@@ -511,17 +534,17 @@ class utag_window:
 
 
 	def dialog(self, widget=None, event=None, title=u'Уверены?', message=u'Несохранённые изменения будут утеряны!'):
-		self.dialog = gtk.MessageDialog(
+		dialog = gtk.MessageDialog(
 			parent=self.window,
 			type=gtk.MESSAGE_QUESTION,
 			buttons=gtk.BUTTONS_YES_NO,
 			message_format=message
 		)
 		
-		self.dialog.set_title(title)
+		dialog.set_title(title)
 		
-		response = self.dialog.run()
-		self.dialog.destroy()
+		response = dialog.run()
+		dialog.destroy()
 		
 		return not response == gtk.RESPONSE_YES
 		
