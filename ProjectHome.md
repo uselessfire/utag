@@ -1,0 +1,1 @@
+Simple MP3 tag editor based on Mutagen library
