@@ -11,9 +11,8 @@
 
 
 # фикс ошибки при отсутсвии файла
-# чекбокс "удалить всё" в дополнительных
 # настройки
-# justify label to left
+# move label object to left
 
 
 import sys, os, gtk, shutil, gc
@@ -21,7 +20,7 @@ import sys, os, gtk, shutil, gc
 from traceback import format_exc
 
 core = os.path.abspath(__file__)
-coreDir = os.path.split(core)[0]
+coreDir = os.path.dirname(core)
 
 sys.path.insert(0, coreDir + '/libs.zip')
 
@@ -94,7 +93,7 @@ utag <имена файлов> - изменить теги этих файлов
 title = u'UTag - %s'
 
 
-class utag_window:
+class UtagWindow:
 	def __init__(self, files):
 		self.files = files
 		self.All = len(self.files)
@@ -102,7 +101,7 @@ class utag_window:
 		
 		self.window = gtk.Window()
 		
-#		self.window.set_title('UTag')
+		self.window.set_title('UTag')
 #		self.window.set_border_width(0)
 		
 		self.window.set_resizable(False)
@@ -110,14 +109,43 @@ class utag_window:
 		self.window.connect("delete_event", self.dialog)
 		self.window.connect("destroy", gtk.main_quit)
 		
-		self.Vbox = gtk.VBox(False, 0)
 		
+		fileMenu = gtk.MenuItem(u'Файл')
+		menu = gtk.Menu()
+		
+		openMenu = gtk.MenuItem(u'Открыть')
+		openMenu.connect("activate", self.fileOpenDialog)
+		openMenu.show()
+		menu.append(openMenu)
+		
+		settingsMenu = gtk.MenuItem(u'Настройки')
+		settingsMenu.show()
+		menu.append(settingsMenu)
+		
+		exitMenu = gtk.MenuItem(u'Выход')
+		exitMenu.connect("activate", gtk.main_quit)
+		exitMenu.show()
+		menu.append(exitMenu)
+		
+		fileMenu.set_submenu(menu)
+		fileMenu.show()
+		menuBar = gtk.MenuBar()
+		menuBar.show()
+		menuBar.append(fileMenu)
+ 		
+		
+		self.Vbox = gtk.VBox(False, 0)
+		self.Vbox.pack_start(menuBar, False, False, 2)
 		
 		frame = gtk.Frame(u'Информация')
 		frame.show()
 		self.label = gtk.Label()
 		self.label.show()
 		self.label.set_justify(gtk.JUSTIFY_LEFT)
+		self.label.set_line_wrap(True)
+		self.label.set_alignment(0, 0)
+		self.label.set_selectable(True)
+		self.label.set_text(u'Необходимо открыть файлы.\nЭто можно сделать с помошью меню "Файл" или нажав правой кнопкой на файл и выбрав "Открыть с помощью UTag".')
 		frame.add(self.label)
 		self.Vbox.add(frame)
 		
@@ -126,7 +154,7 @@ class utag_window:
 		# artist
 		response, self.artist = self.tag_entry(u'Исполнитель')
 		self.Vbox.add(response)
-		self.artist.connect("activate", self.update_newName)
+		self.artist.connect("activate", self.update_label)
 		
 		
 		# album
@@ -140,7 +168,7 @@ class utag_window:
 		
 		self.asArtist = gtk.CheckButton(u'Как исполнитель')
 		self.asArtist.show()
-		self.asArtist.connect("toggled", self.asArtistHandler)
+		self.asArtist.connect("toggled", self.as_artist_handler)
 		VBox.add(self.asArtist)
 		
 		self.album = gtk.Entry(max=64)
@@ -153,7 +181,7 @@ class utag_window:
 		# title
 		response, self.title = self.tag_entry(u'Название')
 		self.Vbox.add(response)
-		self.title.connect("activate", self.update_newName)
+		self.title.connect("activate", self.update_label)
 		
 		
 		temp = gtk.Expander(u'Дополнительно')
@@ -167,7 +195,7 @@ class utag_window:
 		self.deleteAll = gtk.CheckButton(u'Очистить всё')
 		self.deleteAll.show()
 		Vbox.add(self.deleteAll)
-		self.deleteAll.connect("toggled", self.deleteAllHandler)
+		self.deleteAll.connect("toggled", self.delete_all_handler)
 		
 		self.expanderBox = gtk.HBox()
 		self.expanderBox.show()
@@ -283,11 +311,8 @@ class utag_window:
 		self.deleteAlbumArt.show()
 		VBox.add(self.deleteAlbumArt)
 		
-		imageFilter = gtk.FileFilter()
-		imageFilter.add_mime_type('image/jpeg')
-		imageFilter.add_mime_type('image/png')
 		self.albumArtChooser = gtk.FileChooserButton(u'Выберите обложку')
-		self.albumArtChooser.set_filter(imageFilter)
+		self.albumArtChooser.set_filter(self.imageFilter)
 		self.albumArtChooser.show()
 		VBox.add(self.albumArtChooser)
 		
@@ -326,6 +351,7 @@ class utag_window:
 		self.delete_and_next_button.connect('clicked', self.delete_and_next_file)
 		self.Hbox.add(self.delete_and_next_button)
 		self.delete_and_next_button.show()
+		self.delete_and_next_button.unrealize()
 		
 		self.next_button = gtk.Button(u'Пропустить')
 		self.next_button.connect('clicked', self.next_file)
@@ -336,6 +362,12 @@ class utag_window:
 		self.save_and_next_button.connect('clicked', self.save_and_next_file)
 		self.save_and_next_button.show()
 		self.Hbox.add(self.save_and_next_button)
+		
+		self.buttons = (self.save_and_next_button, self.next_button, self.delete_and_next_button)
+		
+		if not self.files:
+			for button in (self.save_and_next_button, self.next_button, self.delete_and_next_button):
+				button.set_sensitive(False)
 		
 		
 		
@@ -349,17 +381,15 @@ class utag_window:
 		
 		self.window.show()
 		
-		
-		self.next_file()
-	
+
+		if self.files: self.next_file()
 	
 	
 	def save_and_next_file(self, widget=None):
 		if self.asArtist.get_active():
 			self.album.set_text(self.artist.get_text())
 		for name, entry in self.entrances.items():
-			text = entry.get_text() ####################################
-			############################################################ хандлер чекбокса удаления
+			text = entry.get_text()
 			if text and ((not self.deleteAll.get_active()) or name in self.mainEntrances):
 				self.mp3[name] = text
 			elif name in self.mp3:
@@ -413,18 +443,23 @@ class utag_window:
 			if artistSort and (not os.path.exists(newDir)):
 				os.mkdir(newDir)
 			
-			newPath = "%s/%s" % (newDir, newName)
-			print os.path.realpath(newPath)
-			print os.path.realpath(self.mp3.filename)
-			if os.path.realpath(newPath) != os.path.realpath(self.mp3.filename):
-				if os.path.exists(newPath):
+			realPath = os.path.realpath(self.mp3.filename)
+			newRealPath = os.path.realpath("%s/%s/%s" % (os.path.split(realPath)[0], newDir, newName))
+			
+			newDir = os.path.dirname(newRealPath)
+			if not os.path.exists(newDir):
+				os.makedirs(newDir)
+			
+			
+			if realPath != newRealPath:
+				if os.path.exists(newRealPath):
 					if not self.dialog(title=u'Конфликт', message=u'Файл "%s" уже существует в папке "%s"\nЗаменить?' % (newName, newDir)):
-						os.remove(newPath)
-						shutil.move(self.mp3.filename, newPath)	
+						os.remove(newRealPath)
+						shutil.move(realPath, newRealPath)
 						print u'Файл "%s" был перемещён в папку "%s" с названием "%s" с перезаписью' % (self.mp3.filename, newDir, newName)
 						self.next_file()
 				else:
-					shutil.move(self.mp3.filename, newPath)	
+					shutil.move(realPath, newRealPath)
 					print u'Файл "%s" был перемещён в папку "%s" с названием "%s"' % (self.mp3.filename, newDir, newName)
 					self.next_file()
 			else:
@@ -475,7 +510,7 @@ class utag_window:
 
 
 
-	def update_label(self):
+	def update_label(self, widget=None):	
 		minutes = self.mp3.info.length / 60
 		seconds = self.mp3.info.length % 60
 		self.label_text = default_label_text % \
@@ -491,15 +526,17 @@ class utag_window:
 			self.mp3.info.bitrate / 1024,
 			'%s'
 			)
-		self.update_newName()
+		self.label.set_text(self.newName())
 	
-	def asArtistHandler(self, button):
+	
+	def as_artist_handler(self, button):
 		if button.get_active():
 			self.album.hide()
 		else:
 			self.album.show()
 	
-	def deleteAllHandler(self, button):
+	
+	def delete_all_handler(self, button):
 		if button.get_active():
 			for entrance in self.additionalEntrances.values():
 				entrance.parent.hide()
@@ -508,14 +545,12 @@ class utag_window:
 				entrance.parent.show()
 	
 	
-	update_newName = lambda self, widget=None: self.label.set_text(
-		self.label_text % \
-				(u'%s - %s.mp3' % \
-					(
-						(self.artist.get_text()		if	self.artist.get_text()	else	u'Неизвестно'),
-						(self.title.get_text()		if	self.title.get_text()	else	u'Неизвестно')
-					)
-				)
+	newName = lambda self, widget=None: self.label_text % \
+		(u'%s - %s.mp3' % \
+			(
+				(self.artist.get_text()		if	self.artist.get_text()	else	u'Неизвестно'),
+				(self.title.get_text()		if	self.title.get_text()	else	u'Неизвестно')
+			)
 		)
 
 #	def update_newName(self, widget=None):
@@ -547,7 +582,34 @@ class utag_window:
 		dialog.destroy()
 		
 		return not response == gtk.RESPONSE_YES
-		
+	
+	
+	def fileOpenDialog(self, a, b=None):
+		dialog = gtk.FileChooserDialog(title=u'Открыть', parent=self.window, action=gtk.FILE_CHOOSER_ACTION_OPEN, buttons=(gtk.STOCK_CANCEL,gtk.RESPONSE_CANCEL,gtk.STOCK_OPEN,gtk.RESPONSE_OK))
+		dialog.set_select_multiple(True)
+		dialog.set_filter(self.mp3Filter)
+		if dialog.run() == gtk.RESPONSE_OK:
+			newFiles = dialog.get_filenames()
+			firstFile = not bool(self.files)
+			self.files += newFiles
+			self.All += len(newFiles)
+			if firstFile:
+				self.next_file()
+				for button in self.buttons:
+					button.set_sensitive(True)
+			else:
+				self.update_label()
+			
+		dialog.destroy()
+	
+	
+	imageFilter = gtk.FileFilter()
+	imageFilter.add_mime_type('image/jpeg')
+	imageFilter.add_mime_type('image/png')
+	
+	mp3Filter = gtk.FileFilter()
+	mp3Filter.add_mime_type('audio/mpeg')
+	
 
 
 def completion(number):
@@ -573,27 +635,21 @@ def main():
 	else:
 		if not os.path.exists(mvDir):
 			os.makedirs(mvDir)
-		files = (sys.argv if sys.argv else os.listdir(chr(46)))
 		mp3files = list()
-		for x in files:
+		for x in sys.argv:
 			if (not os.path.isdir(x)) and x.lower().endswith('mp3'):
 				mp3files.append(x)
 			else:
 				print(u'Невозможно открыть файл "%s": это не MP3 файл' % x)
-		if mp3files:
-			os.chdir(os.path.split(os.path.abspath(mp3files[0]))[0])
-			utag_window(mp3files)
-			gtk.main()
-		else:
-			print(u'\n\nНе указано файлов')
-		
-
+#		os.chdir(os.path.split(os.path.abspath(mp3files[0]))[0])
+		UtagWindow(mp3files)
+		gtk.main()
 
 
 if __name__ == '__main__':
 	try:
 		main()
 	except KeyboardInterrupt:
-		pass
-	sys.exit(0)
-
+		sys.exit(1)
+	else:
+		sys.exit(0)
